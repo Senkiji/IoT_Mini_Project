@@ -1,0 +1,71 @@
+# ==========================================================
+# ค่าตั้งต้นของ Edge Speeding Detector
+# ปรับ calibration ให้ตรงกับวิดีโอจริงก่อนใช้งานจริง!
+# ใช้ calibration_helper.py ช่วยหาค่าได้ (คลิกจุดบนวิดีโอ)
+# ==========================================================
+
+camera_id: CAM_01
+
+# path ไปยังไฟล์วิดีโอ หรือ 0 สำหรับ webcam
+# override ได้ด้วย --source ตอนรันโดยไม่ต้องแก้ไฟล์นี้
+source: video/trafficExample1.mp4
+
+# เปลี่ยนเป็นโมเดลที่เทรนเองจาก mini project แรกได้ เช่น
+# runs/car_detect_yolov8/weights/best.pt
+model_path: edge/yolov8n.pt
+
+fps: 30
+speed_limit_kmh: 60
+
+calibration:
+  # เลือก "simple_ratio" (ง่าย เหมาะกล้องมุมตรง/ระยะใกล้)
+  # หรือ "homography" (แม่นกว่า เหมาะกล้องมุมเอียง/มองจากที่สูง)
+  method: simple_ratio
+
+  # --- ใช้ตอน method: simple_ratio ---
+  # ค่าตัวอย่างเท่านั้น ต้องวัดจากวิดีโอจริง!
+  # วิธีหาคร่าวๆ: วัดความกว้างเลนจริง (เช่น 3.5 ม.) หารด้วยความกว้างเลนในภาพเป็น pixel
+  meters_per_pixel: 0.05
+
+  # --- ใช้ตอน method: homography (แนะนำถ้ากล้องมุมเอียง) ---
+  # ปลดคอมเมนต์แล้วใส่ 4 จุดพิกัด pixel บนภาพ คู่กับพิกัดจริงหน่วยเมตร (สี่เหลี่ยมบนถนน)
+  # หรือใช้ calibration_helper.py คลิกเลือกแล้วให้เขียนให้อัตโนมัติ
+  # pixel_points: [[100,400],[500,400],[500,600],[100,600]]
+  # real_points:  [[0,0],[3.5,0],[3.5,20],[0,20]]
+
+speed_calc:
+  # คำนวณความเร็วทุกๆ กี่เฟรม (ยิ่งมากยิ่งนิ่งแต่หน่วงขึ้น)
+  frame_window: 10
+  # ค่า EMA smoothing (0-1) ยิ่งน้อยยิ่งนิ่ง ยิ่งมากยิ่งตอบสนองไว
+  smoothing_alpha: 0.3
+
+mqtt:
+  # เปลี่ยนเป็น true เมื่อมี MQTT broker พร้อมแล้ว (ขั้นตอนถัดไป: Docker stack)
+  enabled: false
+  host: localhost
+  port: 1883
+  topic: traffic/events
+
+# ส่ง event เข้า Kafka โดยตรง (ไม่มี username/password)
+kafka:
+  enabled: false
+  bootstrap_servers: 172.16.2.117:9092
+  topic: traffic/events
+  security_protocol: PLAINTEXT
+  acks: all
+  client_id: car-detect-speed
+
+# ส่ง event เข้า InfluxDB v2 โดยตรง (ไม่ต้องติดตั้งหรือรัน Telegraf)
+influxdb:
+  enabled: false
+  url: http://172.16.2.117:8086
+  organization: your-organization
+  bucket: mini_project
+  measurement: speeding_events
+  token: your-influxdb-token
+
+output:
+  snapshot_dir: edge/output/snapshots
+  events_log: edge/output/events.jsonl
+  # ไฟล์รถทุกคันจะตั้งชื่อ vehicles_YYYYMMDDTHHMMSSZ.jsonl
+  vehicles_log_dir: edge/output
